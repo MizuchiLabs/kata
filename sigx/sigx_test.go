@@ -7,8 +7,7 @@ import (
 )
 
 func TestNotifyContext(t *testing.T) {
-	ctx, stop := NotifyContext(syscall.SIGUSR1)
-	defer stop()
+	ctx := NotifyContext(syscall.SIGUSR1)
 
 	if err := syscall.Kill(syscall.Getpid(), syscall.SIGUSR1); err != nil {
 		t.Fatalf("send signal: %v", err)

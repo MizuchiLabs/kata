@@ -12,7 +12,7 @@ import (
 // receives one of sigs (default: SIGINT, SIGTERM). After the first
 // signal the default disposition is restored, so a second signal kills
 // the process immediately instead of waiting for graceful shutdown.
-func NotifyContext(sigs ...os.Signal) (context.Context, context.CancelFunc) {
+func NotifyContext(sigs ...os.Signal) context.Context {
 	if len(sigs) == 0 {
 		sigs = []os.Signal{os.Interrupt, syscall.SIGTERM}
 	}
@@ -21,5 +21,5 @@ func NotifyContext(sigs ...os.Signal) (context.Context, context.CancelFunc) {
 		<-ctx.Done()
 		stop() // restore default behavior: next signal kills instantly
 	}()
-	return ctx, stop
+	return ctx
 }
