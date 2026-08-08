@@ -2,6 +2,7 @@ package logx
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -47,5 +48,39 @@ func TestRedactGroup(t *testing.T) {
 	}
 	if !strings.Contains(out, "user=alice") {
 		t.Errorf("non-sensitive group value dropped: %s", out)
+	}
+}
+
+func TestRedactOperationalSecrets(t *testing.T) {
+	var buf strings.Builder
+	l := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{ReplaceAttr: redact}))
+	l.Error("request failed",
+		"error", errors.New("database password=do-not-log"),
+		"uri", "scw-kms://regions/fr-par/keys/private-key",
+		"endpoint", "https://user:password@example.test/bucket",
+		"email", "alice@example.test",
+	)
+
+	out := buf.String()
+	for _, secret := range []string{
+		"do-not-log",
+		"private-key",
+		"regions/fr-par",
+		"user:password",
+		"alice@example.test",
+	} {
+		if strings.Contains(out, secret) {
+			t.Errorf("sensitive value leaked: %q in %s", secret, out)
+		}
+	}
+	for _, expected := range []string{
+		"error_type=",
+		"uri=scw-kms://[REDACTED]",
+		"endpoint=https://example.test",
+		"email=[REDACTED]",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Errorf("redacted value missing %q: %s", expected, out)
+		}
 	}
 }

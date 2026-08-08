@@ -4,10 +4,14 @@
 package logx
 
 import (
+	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 )
+
+const redacted = "[REDACTED]"
 
 // Init sets the default slog logger. debug enables the debug level and
 // source locations in log output.
@@ -36,6 +40,14 @@ func isTerminal(f *os.File) bool {
 // Lookup is case-insensitive; common spelling variants are listed
 // explicitly to avoid per-attribute normalization cost.
 var sensitiveKeys = map[string]struct{}{
+	"api_key":       {},
+	"apikey":        {},
+	"authorization": {},
+	"auth":          {},
+	"cookie":        {},
+	"email":         {},
+	"ip_address":    {},
+	"peer":          {},
 	"password":      {},
 	"passwd":        {},
 	"pwd":           {},
@@ -45,10 +57,6 @@ var sensitiveKeys = map[string]struct{}{
 	"accesstoken":   {},
 	"refresh_token": {},
 	"refreshtoken":  {},
-	"authorization": {},
-	"auth":          {},
-	"apikey":        {},
-	"api_key":       {},
 	"privkey":       {},
 	"privatekey":    {},
 	"private_key":   {},
@@ -58,9 +66,9 @@ var sensitiveKeys = map[string]struct{}{
 	"cardnumber":    {},
 	"card_number":   {},
 	"cvv":           {},
+	"remote_addr":   {},
+	"user_agent":    {},
 }
-
-const redacted = "[REDACTED]"
 
 // redact is a slog ReplaceAttr callback that masks the values of
 // attributes whose keys appear in sensitiveKeys. Leaf attributes inside
@@ -68,8 +76,34 @@ const redacted = "[REDACTED]"
 // applies recursively. Built-in attributes (time, level, source, msg)
 // are passed through unchanged.
 func redact(_ []string, a slog.Attr) slog.Attr {
+	switch strings.ToLower(a.Key) {
+	case "error":
+		return slog.String("error_type", fmt.Sprintf("%T", a.Value.Any()))
+	case "panic":
+		return slog.String("panic_type", fmt.Sprintf("%T", a.Value.Any()))
+	case "uri":
+		a.Value = slog.StringValue(safeURI(a.Value.String()))
+	case "endpoint":
+		a.Value = slog.StringValue(safeEndpoint(a.Value.String()))
+	}
 	if _, ok := sensitiveKeys[strings.ToLower(a.Key)]; ok {
 		a.Value = slog.StringValue(redacted)
 	}
 	return a
+}
+
+func safeURI(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" {
+		return redacted
+	}
+	return u.Scheme + "://" + redacted
+}
+
+func safeEndpoint(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Hostname() == "" {
+		return redacted
+	}
+	return u.Scheme + "://" + u.Hostname()
 }
