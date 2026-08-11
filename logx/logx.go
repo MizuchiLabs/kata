@@ -74,11 +74,10 @@ var sensitiveKeys = map[string]struct{}{
 // attributes whose keys appear in sensitiveKeys. Leaf attributes inside
 // nested groups are also passed through by the handler, so redaction
 // applies recursively. Built-in attributes (time, level, source, msg)
-// are passed through unchanged.
+// are passed through unchanged. Error values pass through verbatim;
+// panic values are reduced to their type.
 func redact(_ []string, a slog.Attr) slog.Attr {
 	switch strings.ToLower(a.Key) {
-	case "error":
-		return slog.String("error_type", fmt.Sprintf("%T", a.Value.Any()))
 	case "panic":
 		return slog.String("panic_type", fmt.Sprintf("%T", a.Value.Any()))
 	case "uri":

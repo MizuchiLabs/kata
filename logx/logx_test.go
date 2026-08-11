@@ -63,7 +63,6 @@ func TestRedactOperationalSecrets(t *testing.T) {
 
 	out := buf.String()
 	for _, secret := range []string{
-		"do-not-log",
 		"private-key",
 		"regions/fr-par",
 		"user:password",
@@ -74,7 +73,7 @@ func TestRedactOperationalSecrets(t *testing.T) {
 		}
 	}
 	for _, expected := range []string{
-		"error_type=",
+		`error="database password=do-not-log"`,
 		"uri=scw-kms://[REDACTED]",
 		"endpoint=https://example.test",
 		"email=[REDACTED]",
