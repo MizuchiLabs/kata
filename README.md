@@ -35,10 +35,7 @@ func main() {
 		// ...
 	}
 
-	ctx, stop := sigx.NotifyContext()
-	defer stop()
-
-	if err := cmd.Run(ctx, os.Args); err != nil {
+	if err := cmd.Run(sigx.NotifyContext(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "myapp: %v\n", err)
 		os.Exit(1)
 	}
