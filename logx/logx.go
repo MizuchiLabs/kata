@@ -1,6 +1,7 @@
-// Package logx installs the standard slog configuration
-// human-readable text on a terminal, JSON when piped or running
-// under a service manager, always on stderr.
+// Package logx installs the standard slog configuration: human-readable
+// text on a terminal, JSON when piped or running under a service
+// manager, always on stderr. Attribute keys in the sensitive set are
+// redacted; extend the set with AddSensitiveKeys.
 package logx
 
 import (
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 )
 
 const redacted = "[REDACTED]"
@@ -38,16 +40,14 @@ func isTerminal(f *os.File) bool {
 
 // sensitiveKeys holds attribute keys whose values must never be logged.
 // Lookup is case-insensitive; common spelling variants are listed
-// explicitly to avoid per-attribute normalization cost.
+// explicitly to avoid per-attribute normalization cost. The default set
+// is deliberately minimal: add project-specific keys with AddSensitiveKeys.
 var sensitiveKeys = map[string]struct{}{
 	"api_key":       {},
 	"apikey":        {},
 	"authorization": {},
 	"auth":          {},
 	"cookie":        {},
-	"email":         {},
-	"ip_address":    {},
-	"peer":          {},
 	"password":      {},
 	"passwd":        {},
 	"pwd":           {},
@@ -60,14 +60,23 @@ var sensitiveKeys = map[string]struct{}{
 	"privkey":       {},
 	"privatekey":    {},
 	"private_key":   {},
-	"ssn":           {},
+	"cvv":           {},
 	"creditcard":    {},
 	"credit_card":   {},
 	"cardnumber":    {},
 	"card_number":   {},
-	"cvv":           {},
-	"remote_addr":   {},
-	"user_agent":    {},
+}
+
+var redactMu sync.RWMutex
+
+// AddSensitiveKeys registers keys whose values must be redacted from all
+// future log output, matching case-insensitively. Call it before Init.
+func AddSensitiveKeys(keys ...string) {
+	redactMu.Lock()
+	defer redactMu.Unlock()
+	for _, k := range keys {
+		sensitiveKeys[strings.ToLower(k)] = struct{}{}
+	}
 }
 
 // redact is a slog ReplaceAttr callback that masks the values of
@@ -77,7 +86,9 @@ var sensitiveKeys = map[string]struct{}{
 // are passed through unchanged. Error values pass through verbatim;
 // panic values are reduced to their type.
 func redact(_ []string, a slog.Attr) slog.Attr {
-	switch strings.ToLower(a.Key) {
+	key := strings.ToLower(a.Key)
+
+	switch key {
 	case "panic":
 		return slog.String("panic_type", fmt.Sprintf("%T", a.Value.Any()))
 	case "uri":
@@ -85,7 +96,11 @@ func redact(_ []string, a slog.Attr) slog.Attr {
 	case "endpoint":
 		a.Value = slog.StringValue(safeEndpoint(a.Value.String()))
 	}
-	if _, ok := sensitiveKeys[strings.ToLower(a.Key)]; ok {
+
+	redactMu.RLock()
+	_, isSensitive := sensitiveKeys[key]
+	redactMu.RUnlock()
+	if isSensitive {
 		a.Value = slog.StringValue(redacted)
 	}
 	return a
