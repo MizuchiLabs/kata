@@ -18,6 +18,11 @@ go get github.com/mizuchilabs/kata@latest
 
 ```go
 import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/mizuchilabs/kata/buildinfo"
 	"github.com/mizuchilabs/kata/logx"
 	"github.com/mizuchilabs/kata/sigx"
@@ -32,10 +37,22 @@ func main() {
 			logx.Init(cmd.Bool("debug"))
 			return ctx, nil
 		},
-		// ...
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			slog.Info("running")
+			return nil
+		},
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+                Name: "debug",
+                Usage: "enable debug logging",
+            },
+		},
 	}
 
-	if err := cmd.Run(sigx.NotifyContext(), os.Args); err != nil {
+	ctx, stop := sigx.Context(context.Background())
+	defer stop()
+
+	if err := cmd.Run(ctx, os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "myapp: %v\n", err)
 		os.Exit(1)
 	}
@@ -43,6 +60,13 @@ func main() {
 ```
 
 `buildinfo.UserAgent(name)` returns `name/version (goos/arch)` for HTTP clients.
+
+`logx` redacts credentials (`password`, `token`, `authorization`, and so on) from every attribute, including nested groups. Register project-specific keys before calling `logx.Init`:
+
+```go
+logx.AddSensitiveKeys("dsn", "client_secret")
+logx.Init(cmd.Bool("debug"))
+```
 
 ## goreleaser
 
