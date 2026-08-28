@@ -1,0 +1,15 @@
+version: "3"
+
+tasks:
+  lint:
+    desc: Run go vet & lint
+    ignore_error: true
+    cmds:
+      - go mod tidy
+      - go fmt ./...
+      - go vet ./...
+      - gofumpt -w .
+      - golines -w .
+      - govulncheck ./...
+      - go test -race -count=1 -cover ./...
+      - golangci-lint run
