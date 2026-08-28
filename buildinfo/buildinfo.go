@@ -34,15 +34,24 @@ func init() {
 	if !ok {
 		return
 	}
-	if v := bi.Main.Version; v != "" && v != "(devel)" {
+	applyBuildInfo(bi)
+}
+
+// applyBuildInfo fills the package variables from bi. Only variables
+// still at their unset defaults ("dev", "none", "unknown") are
+// overwritten, so values injected via ldflags always win.
+func applyBuildInfo(bi *debug.BuildInfo) {
+	if v := bi.Main.Version; v != "" && v != "(devel)" && Version == "dev" {
 		Version = strings.TrimPrefix(v, "v") // go install path@vX.Y.Z
 	}
+	filledCommit := false
 	dirty := false
 	for _, s := range bi.Settings {
 		switch s.Key {
 		case "vcs.revision":
 			if Commit == "none" {
 				Commit = s.Value
+				filledCommit = true
 			}
 		case "vcs.time":
 			if Date == "unknown" {
@@ -52,7 +61,7 @@ func init() {
 			dirty = s.Value == "true"
 		}
 	}
-	if dirty && Commit != "none" {
+	if dirty && filledCommit {
 		Commit += "-dirty"
 	}
 }
