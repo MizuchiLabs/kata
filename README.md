@@ -5,7 +5,6 @@ The shared foundation for [MizuchiLabs](https://github.com/mizuchilabs) tools. S
 | Package     | Purpose                                                                                                            |
 | ----------- | ------------------------------------------------------------------------------------------------------------------ |
 | `buildinfo` | Version/commit/date via ldflags, with `debug.ReadBuildInfo()` fallback so `go install` builds report real versions |
-| `webkit`    | net/http middleware and response helpers: access logging, panic recovery, request IDs, CORS, JSON responses        |
 | `logx`      | Standard slog setup: text on a terminal, JSON when piped, always stderr                                            |
 | `sigx`      | `signal.NotifyContext` with force-quit on second signal                                                            |
 
@@ -65,18 +64,6 @@ func main() {
 logx.AddSensitiveKeys("dsn", "client_secret")
 logx.Init(cmd.Bool("debug"))
 ```
-
-`webkit.Logger` logs one line per request through the default slog logger: 4xx at Warn, 5xx at Error, the rest at the level you pick. The optional skip callback suppresses noisy routes. The query string and headers are never logged. Logger adds a `request_id` attribute when a RequestID middleware is in the chain. Recover turns handler panics into 500 responses plus an ERROR log line with the stack trace.
-
-```go
-mux.Handle("GET /{$}", webkit.RequestID(
-	webkit.Logger(slog.LevelInfo, func(r *http.Request, sw *webkit.StatusWriter) bool {
-		return r.URL.Path == "/healthz" && sw.Status() == http.StatusOK
-	})(webkit.Recover(handler)),
-))
-```
-
-Browser-facing APIs can opt into CORS with `webkit.CORS(webkit.CORSConfig{Origins: []string{"https://app.example.com"}})`, which answers preflights and marks simple requests with the origin policy. Plain stdlib handlers share one error shape via `webkit.Error(w, http.StatusBadRequest, "invalid id")`.
 
 ## goreleaser
 
