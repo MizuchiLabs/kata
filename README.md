@@ -5,6 +5,7 @@ The shared foundation for [MizuchiLabs](https://github.com/mizuchilabs) tools. S
 | Package     | Purpose                                                                                                            |
 | ----------- | ------------------------------------------------------------------------------------------------------------------ |
 | `buildinfo` | Version/commit/date via ldflags, with `debug.ReadBuildInfo()` fallback so `go install` builds report real versions |
+| `httpx`     | `StatusWriter` (status/size capture, flush and hijack passthrough) and slog access-log middleware                 |
 | `logx`      | Standard slog setup: text on a terminal, JSON when piped, always stderr                                            |
 | `sigx`      | `signal.NotifyContext` with force-quit on second signal                                                            |
 
@@ -49,10 +50,7 @@ func main() {
 		},
 	}
 
-	ctx, stop := sigx.Context(context.Background())
-	defer stop()
-
-	if err := cmd.Run(ctx, os.Args); err != nil {
+	if err := cmd.Run(sigx.NotifyContext(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "myapp: %v\n", err)
 		os.Exit(1)
 	}
@@ -66,6 +64,14 @@ func main() {
 ```go
 logx.AddSensitiveKeys("dsn", "client_secret")
 logx.Init(cmd.Bool("debug"))
+```
+
+`httpx.Logger` logs one line per request through the default slog logger: 4xx at Warn, 5xx at Error, the rest at the level you pick. The optional skip callback suppresses noisy routes. The query string and headers are never logged.
+
+```go
+mux.Handle("GET /{$}", httpx.Logger(slog.LevelInfo, func(r *http.Request, sw *httpx.StatusWriter) bool {
+	return r.URL.Path == "/healthz" && sw.Status() == http.StatusOK
+})(handler))
 ```
 
 ## goreleaser
