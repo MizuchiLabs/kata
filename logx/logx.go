@@ -27,7 +27,7 @@ func Init(debug bool) {
 	opts := &slog.HandlerOptions{Level: level, AddSource: debug, ReplaceAttr: redact}
 
 	var h slog.Handler
-	if IsTerminal(os.Stderr) {
+	if IsTerminal() {
 		h = slog.NewTextHandler(os.Stderr, opts)
 	} else {
 		h = slog.NewJSONHandler(os.Stderr, opts)
@@ -35,8 +35,8 @@ func Init(debug bool) {
 	slog.SetDefault(slog.New(h))
 }
 
-func IsTerminal(f *os.File) bool {
-	return term.IsTerminal(int(f.Fd()))
+func IsTerminal() bool {
+	return term.IsTerminal(int(os.Stderr.Fd()))
 }
 
 // sensitiveKeys holds attribute keys whose values must never be logged.
