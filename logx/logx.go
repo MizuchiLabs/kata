@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"golang.org/x/term"
 )
 
 const redacted = "[REDACTED]"
@@ -25,7 +27,7 @@ func Init(debug bool) {
 	opts := &slog.HandlerOptions{Level: level, AddSource: debug, ReplaceAttr: redact}
 
 	var h slog.Handler
-	if isTerminal(os.Stderr) {
+	if IsTerminal(os.Stderr) {
 		h = slog.NewTextHandler(os.Stderr, opts)
 	} else {
 		h = slog.NewJSONHandler(os.Stderr, opts)
@@ -33,9 +35,8 @@ func Init(debug bool) {
 	slog.SetDefault(slog.New(h))
 }
 
-func isTerminal(f *os.File) bool {
-	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+func IsTerminal(f *os.File) bool {
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // sensitiveKeys holds attribute keys whose values must never be logged.
