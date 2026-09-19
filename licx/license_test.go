@@ -178,6 +178,20 @@ func TestVerifyTampered(t *testing.T) {
 	}
 }
 
+func TestHasPublicKey(t *testing.T) {
+	old := pubkey
+	defer func() { pubkey = old }()
+
+	pubkey = ""
+	if HasPublicKey() {
+		t.Fatal("empty key should report false")
+	}
+	pubkey = "ab12"
+	if !HasPublicKey() {
+		t.Fatal("set key should report true")
+	}
+}
+
 func TestVerifyNoPubKeyInjected(t *testing.T) {
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

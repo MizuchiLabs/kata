@@ -165,6 +165,13 @@ func SetPublicKey(pubHex string) error {
 	return nil
 }
 
+// HasPublicKey reports whether a verification key is available, via
+// ldflags injection or SetPublicKey. Verifiers that surface a distinct
+// "not configured" state use it before Verify.
+func HasPublicKey() bool {
+	return strings.TrimSpace(pubkey) != ""
+}
+
 // loadLicensePubKey decodes the hex-encoded ldflags-injected public key.
 func loadLicensePubKey() (ed25519.PublicKey, error) {
 	if pubkey == "" {
