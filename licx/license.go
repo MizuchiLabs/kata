@@ -155,8 +155,13 @@ func Verify(rawKey, app string) (*Claims, error) {
 
 // SetPublicKey sets the verification key at runtime, for tests and
 // embedders that do not use ldflags. The key is hex-encoded, the same
-// format the ldflags-injected pubkey var expects.
+// format the ldflags-injected pubkey var expects. An empty string clears
+// the key.
 func SetPublicKey(pubHex string) error {
+	if strings.TrimSpace(pubHex) == "" {
+		pubkey = ""
+		return nil
+	}
 	b, err := hex.DecodeString(strings.TrimSpace(pubHex))
 	if err != nil || len(b) != ed25519.PublicKeySize {
 		return errors.New("invalid ed25519 public key hex")

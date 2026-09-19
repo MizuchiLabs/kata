@@ -144,6 +144,12 @@ func TestSetPublicKey(t *testing.T) {
 	if err := SetPublicKey("zzzz"); err == nil {
 		t.Fatal("malformed hex should error")
 	}
+	if err := SetPublicKey(""); err != nil {
+		t.Fatalf("empty string clears the key: %v", err)
+	}
+	if HasPublicKey() {
+		t.Fatal("key should be cleared")
+	}
 	if err := SetPublicKey(hex.EncodeToString(pub)); err != nil {
 		t.Fatalf("valid key rejected: %v", err)
 	}
