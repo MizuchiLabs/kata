@@ -86,8 +86,12 @@ func TestVerifyExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Verify(key, "myapp"); !errors.Is(err, ErrExpired) {
+	c, err := Verify(key, "myapp")
+	if !errors.Is(err, ErrExpired) {
 		t.Fatalf("expired key: got %v", err)
+	}
+	if c == nil || c.Plan != "pro" {
+		t.Fatalf("expired key must return claims: %+v", c)
 	}
 
 	future := time.Now().UTC().Add(time.Hour).Unix()
@@ -97,6 +101,59 @@ func TestVerifyExpiry(t *testing.T) {
 	}
 	if _, err := Verify(key, "myapp"); err != nil {
 		t.Fatalf("unexpired key: %v", err)
+	}
+}
+
+func TestParsePrivateKey(t *testing.T) {
+	privB64, _, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	priv, err := ParsePrivateKey(privB64)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	pubkey = hex.EncodeToString([]byte(priv.Public().(ed25519.PublicKey)))
+	defer func() { pubkey = "" }()
+
+	key, err := Issue("myapp", Claims{Plan: "pro"}, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(key, "myapp"); err != nil {
+		t.Fatalf("parsed key must sign valid keys: %v", err)
+	}
+
+	if _, err := ParsePrivateKey("not-base64!!"); err == nil {
+		t.Fatal("garbage should error")
+	}
+	if _, err := ParsePrivateKey(base64.StdEncoding.EncodeToString(make([]byte, 16))); err == nil {
+		t.Fatal("wrong length should error")
+	}
+}
+
+func TestSetPublicKey(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := pubkey
+	defer func() { pubkey = old }()
+
+	pubkey = ""
+	if err := SetPublicKey("zzzz"); err == nil {
+		t.Fatal("malformed hex should error")
+	}
+	if err := SetPublicKey(hex.EncodeToString(pub)); err != nil {
+		t.Fatalf("valid key rejected: %v", err)
+	}
+
+	key, err := Issue("myapp", Claims{Plan: "pro"}, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(key, "myapp"); err != nil {
+		t.Fatalf("runtime-set key must verify: %v", err)
 	}
 }
 

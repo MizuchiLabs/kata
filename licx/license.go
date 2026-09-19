@@ -39,6 +39,17 @@ func (c *Claims) IsExpired() bool {
 	return time.Now().UTC().Unix() > c.ExpiresAt
 }
 
+// ParsePrivateKey decodes the base64 64-byte Ed25519 private key
+// (seed + public key) produced by GenerateKey, the format the issuing
+// side stores.
+func ParsePrivateKey(privateB64 string) (ed25519.PrivateKey, error) {
+	raw, err := base64.StdEncoding.DecodeString(privateB64)
+	if err != nil || len(raw) != ed25519.PrivateKeySize {
+		return nil, errors.New("private key must be the base64 64-byte Ed25519 key from GenerateKey")
+	}
+	return ed25519.PrivateKey(raw), nil
+}
+
 // Issue generates a formatted key using the worker's private key.
 //
 // app names the license's owner app. With a shared keypair across apps,
@@ -88,9 +99,14 @@ func chunkKey(encoded string) string {
 // key must carry the matching uppercase prefix, e.g. a key issued with
 // Issue("myapp", ...) verifies with Verify(key, "myapp").
 //
+// An expired key returns the parsed claims alongside ErrExpired, so
+// callers can show plan or email details in expiry messages.
+//
 // The public key is injected at build time via ldflags:
 //
 //	-X github.com/mizuchilabs/kata/licx.pubkey=<hex>
+//
+// or at runtime with SetPublicKey.
 func Verify(rawKey, app string) (*Claims, error) {
 	prefix := strings.ToUpper(app) + "-"
 
@@ -131,10 +147,22 @@ func Verify(rawKey, app string) (*Claims, error) {
 	}
 
 	if c.IsExpired() {
-		return nil, ErrExpired
+		return &c, ErrExpired
 	}
 
 	return &c, nil
+}
+
+// SetPublicKey sets the verification key at runtime, for tests and
+// embedders that do not use ldflags. The key is hex-encoded, the same
+// format the ldflags-injected pubkey var expects.
+func SetPublicKey(pubHex string) error {
+	b, err := hex.DecodeString(strings.TrimSpace(pubHex))
+	if err != nil || len(b) != ed25519.PublicKeySize {
+		return errors.New("invalid ed25519 public key hex")
+	}
+	pubkey = strings.TrimSpace(pubHex)
+	return nil
 }
 
 // loadLicensePubKey decodes the hex-encoded ldflags-injected public key.
