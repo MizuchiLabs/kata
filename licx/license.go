@@ -16,10 +16,11 @@ const (
 )
 
 var (
-	ErrInvalidFormat = errors.New("license format is invalid")
-	ErrInvalidSig    = errors.New("signature verification failed")
-	ErrExpired       = errors.New("license has expired")
-	ErrAppMismatch   = errors.New("license issued for a different application")
+	ErrInvalidFormat  = errors.New("license format is invalid")
+	ErrInvalidVersion = errors.New("invalid license version")
+	ErrInvalidSig     = errors.New("signature verification failed")
+	ErrExpired        = errors.New("license has expired")
+	ErrAppMismatch    = errors.New("license issued for a different application")
 )
 
 var pubkey string
@@ -145,7 +146,9 @@ func Verify(rawKey, app string) (*Claims, error) {
 	if c.App != app {
 		return nil, ErrAppMismatch
 	}
-
+	if c.Version != int(wireVersion) {
+		return nil, ErrInvalidVersion
+	}
 	if c.IsExpired() {
 		return &c, ErrExpired
 	}
