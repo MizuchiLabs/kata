@@ -1,3 +1,5 @@
+//go:build unix
+
 package sigx
 
 import (
@@ -7,7 +9,7 @@ import (
 )
 
 func TestNotifyContext(t *testing.T) {
-	ctx := NotifyContext(syscall.SIGUSR1)
+	ctx, unregistered := notifyContext(syscall.SIGUSR1)
 
 	if err := syscall.Kill(syscall.Getpid(), syscall.SIGUSR1); err != nil {
 		t.Fatalf("send signal: %v", err)
@@ -17,5 +19,11 @@ func TestNotifyContext(t *testing.T) {
 	case <-ctx.Done():
 	case <-time.After(2 * time.Second):
 		t.Fatal("context was not cancelled after SIGUSR1")
+	}
+
+	select {
+	case <-unregistered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("signal handler was not unregistered after the first signal")
 	}
 }

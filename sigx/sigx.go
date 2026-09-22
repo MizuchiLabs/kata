@@ -13,13 +13,22 @@ import (
 // signal the default disposition is restored, so a second signal kills
 // the process immediately instead of waiting for graceful shutdown.
 func NotifyContext(sigs ...os.Signal) context.Context {
+	ctx, _ := notifyContext(sigs...)
+	return ctx
+}
+
+// notifyContext is NotifyContext plus a channel closed once the signal
+// handler is unregistered, so tests can wait for the restore.
+func notifyContext(sigs ...os.Signal) (context.Context, <-chan struct{}) {
 	if len(sigs) == 0 {
 		sigs = []os.Signal{os.Interrupt, syscall.SIGTERM}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), sigs...)
+	unregistered := make(chan struct{})
 	go func() {
+		defer close(unregistered)
 		<-ctx.Done()
 		stop() // restore default behavior: next signal kills instantly
 	}()
-	return ctx
+	return ctx, unregistered
 }
