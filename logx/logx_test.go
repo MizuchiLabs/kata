@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 )
@@ -17,6 +18,18 @@ func TestInitLevels(t *testing.T) {
 	Init(true)
 	if !slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 		t.Error("Init(true): debug level should be enabled")
+	}
+}
+
+func TestIsTerminalRejectsCharDevice(t *testing.T) {
+	f, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	if isTerminal(f.Fd()) {
+		t.Error("os.DevNull reported as terminal: a char device is not a terminal")
 	}
 }
 

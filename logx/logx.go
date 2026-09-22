@@ -11,8 +11,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-
-	"golang.org/x/term"
 )
 
 const redacted = "[REDACTED]"
@@ -35,8 +33,9 @@ func Init(debug bool) {
 	slog.SetDefault(slog.New(h))
 }
 
+// IsTerminal reports whether stderr is a terminal.
 func IsTerminal() bool {
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	return isTerminal(os.Stderr.Fd())
 }
 
 // sensitiveKeys holds attribute keys whose values must never be logged.
