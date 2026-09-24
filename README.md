@@ -5,6 +5,7 @@ The shared foundation for [MizuchiLabs](https://github.com/mizuchilabs) tools. S
 | Package     | Purpose                                                                                                            |
 | ----------- | ------------------------------------------------------------------------------------------------------------------ |
 | `buildinfo` | Version/commit/date via ldflags, with `debug.ReadBuildInfo()` fallback so `go install` builds report real versions |
+| `fsutil`    | Atomic file writes and JSON state save/load, unchanged content is skipped                                          |
 | `logx`      | Standard slog setup: text on a terminal, JSON when piped, always stderr                                            |
 | `sigx`      | `signal.NotifyContext` with force-quit on second signal                                                            |
 
