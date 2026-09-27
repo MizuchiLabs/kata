@@ -37,7 +37,7 @@ func TestIssueVerifyRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if c.App != "myapp" || c.Plan != "pro" || c.Email != "a@b.c" || c.Version != int(wireVersion) {
+	if c.App != "myapp" || c.Plan != "pro" || c.Email != "a@b.c" || c.Version != wireVersion {
 		t.Fatalf("unexpected claims: %+v", c)
 	}
 }
@@ -193,8 +193,12 @@ func TestHasPublicKey(t *testing.T) {
 		t.Fatal("empty key should report false")
 	}
 	pubkey = "ab12"
+	if HasPublicKey() {
+		t.Fatal("malformed key should report false")
+	}
+	pubkey = strings.Repeat("ab", ed25519.PublicKeySize)
 	if !HasPublicKey() {
-		t.Fatal("set key should report true")
+		t.Fatal("valid key should report true")
 	}
 }
 

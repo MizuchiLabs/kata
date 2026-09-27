@@ -1,3 +1,4 @@
+// Package licx issues and verifies Ed25519-signed license keys.
 package licx
 
 import (
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	wireVersion byte = 1
-	chunkSize   int  = 5
+	wireVersion = 1
+	chunkSize   = 5
 )
 
 var (
@@ -37,7 +38,7 @@ func (c *Claims) IsExpired() bool {
 	if c.ExpiresAt == 0 {
 		return false
 	}
-	return time.Now().UTC().Unix() > c.ExpiresAt
+	return time.Now().Unix() > c.ExpiresAt
 }
 
 // ParsePrivateKey decodes the base64 64-byte Ed25519 private key
@@ -61,8 +62,11 @@ func Issue(app string, claims Claims, priv ed25519.PrivateKey) (string, error) {
 	if app == "" {
 		return "", errors.New("app name is required")
 	}
+	if len(priv) != ed25519.PrivateKeySize {
+		return "", errors.New("invalid ed25519 private key")
+	}
 	claims.App = app
-	claims.Version = int(wireVersion)
+	claims.Version = wireVersion
 
 	payload, err := json.Marshal(claims)
 	if err != nil {
@@ -126,10 +130,9 @@ func Verify(rawKey, app string) (*Claims, error) {
 		return nil, ErrInvalidFormat
 	}
 
-	sigLen := ed25519.SignatureSize
-	payload := raw[1 : len(raw)-sigLen]
-	sig := raw[len(raw)-sigLen:]
-	pub, err := loadLicensePubKey()
+	payload := raw[1 : len(raw)-ed25519.SignatureSize]
+	sig := raw[len(raw)-ed25519.SignatureSize:]
+	pub, err := decodePubKey(pubkey)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +149,7 @@ func Verify(rawKey, app string) (*Claims, error) {
 	if c.App != app {
 		return nil, ErrAppMismatch
 	}
-	if c.Version != int(wireVersion) {
+	if c.Version != wireVersion {
 		return nil, ErrInvalidVersion
 	}
 	if c.IsExpired() {
@@ -161,31 +164,30 @@ func Verify(rawKey, app string) (*Claims, error) {
 // format the ldflags-injected pubkey var expects. An empty string clears
 // the key.
 func SetPublicKey(pubHex string) error {
-	if strings.TrimSpace(pubHex) == "" {
-		pubkey = ""
-		return nil
+	pubHex = strings.TrimSpace(pubHex)
+	if pubHex != "" {
+		if _, err := decodePubKey(pubHex); err != nil {
+			return err
+		}
 	}
-	b, err := hex.DecodeString(strings.TrimSpace(pubHex))
-	if err != nil || len(b) != ed25519.PublicKeySize {
-		return errors.New("invalid ed25519 public key hex")
-	}
-	pubkey = strings.TrimSpace(pubHex)
+	pubkey = pubHex
 	return nil
 }
 
-// HasPublicKey reports whether a verification key is available, via
+// HasPublicKey reports whether a valid verification key is available, via
 // ldflags injection or SetPublicKey. Verifiers that surface a distinct
 // "not configured" state use it before Verify.
 func HasPublicKey() bool {
-	return strings.TrimSpace(pubkey) != ""
+	_, err := decodePubKey(pubkey)
+	return err == nil
 }
 
-// loadLicensePubKey decodes the hex-encoded ldflags-injected public key.
-func loadLicensePubKey() (ed25519.PublicKey, error) {
-	if pubkey == "" {
+func decodePubKey(pubHex string) (ed25519.PublicKey, error) {
+	pubHex = strings.TrimSpace(pubHex)
+	if pubHex == "" {
 		return nil, errors.New("no license public key injected")
 	}
-	b, err := hex.DecodeString(strings.TrimSpace(pubkey))
+	b, err := hex.DecodeString(pubHex)
 	if err != nil || len(b) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid ed25519 public key hex")
 	}

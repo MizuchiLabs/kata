@@ -6,6 +6,7 @@ The shared foundation for [MizuchiLabs](https://github.com/mizuchilabs) tools. S
 | ----------- | ------------------------------------------------------------------------------------------------------------------ |
 | `buildinfo` | Version/commit/date via ldflags, with `debug.ReadBuildInfo()` fallback so `go install` builds report real versions |
 | `fsutil`    | Atomic file writes and JSON state save/load, unchanged content is skipped                                          |
+| `licx`      | Ed25519-signed license keys with an app-name prefix, public key injected via ldflags                               |
 | `logx`      | Standard slog setup: text on a terminal, JSON when piped, always stderr                                            |
 | `sigx`      | `signal.NotifyContext` with force-quit on second signal                                                            |
 
