@@ -7,10 +7,11 @@ package logx
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"os"
 	"strings"
-	"sync"
+	"sync/atomic"
 )
 
 const redacted = "[REDACTED]"
@@ -35,14 +36,15 @@ func Init(debug bool) {
 
 // IsTerminal reports whether stderr is a terminal.
 func IsTerminal() bool {
-	return isTerminal(os.Stderr.Fd())
+	fi, err := os.Stderr.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
 // sensitiveKeys holds attribute keys whose values must never be logged.
 // Lookup is case-insensitive; common spelling variants are listed
 // explicitly to avoid per-attribute normalization cost. The default set
 // is deliberately minimal: add project-specific keys with AddSensitiveKeys.
-var sensitiveKeys = map[string]struct{}{
+var defaultSensitiveKeys = map[string]struct{}{
 	"api_key":       {},
 	"apikey":        {},
 	"authorization": {},
@@ -67,15 +69,23 @@ var sensitiveKeys = map[string]struct{}{
 	"card_number":   {},
 }
 
-var redactMu sync.RWMutex
+// sensitiveKeys is copy-on-write so redact reads it without locking.
+var sensitiveKeys atomic.Pointer[map[string]struct{}]
+
+func init() { sensitiveKeys.Store(&defaultSensitiveKeys) }
 
 // AddSensitiveKeys registers keys whose values must be redacted from all
 // future log output, matching case-insensitively. Call it before Init.
 func AddSensitiveKeys(keys ...string) {
-	redactMu.Lock()
-	defer redactMu.Unlock()
-	for _, k := range keys {
-		sensitiveKeys[strings.ToLower(k)] = struct{}{}
+	for {
+		old := sensitiveKeys.Load()
+		m := maps.Clone(*old)
+		for _, k := range keys {
+			m[strings.ToLower(k)] = struct{}{}
+		}
+		if sensitiveKeys.CompareAndSwap(old, &m) {
+			return
+		}
 	}
 }
 
@@ -97,10 +107,7 @@ func redact(_ []string, a slog.Attr) slog.Attr {
 		a.Value = slog.StringValue(safeEndpoint(a.Value.String()))
 	}
 
-	redactMu.RLock()
-	_, isSensitive := sensitiveKeys[key]
-	redactMu.RUnlock()
-	if isSensitive {
+	if _, ok := (*sensitiveKeys.Load())[key]; ok {
 		a.Value = slog.StringValue(redacted)
 	}
 	return a
