@@ -59,7 +59,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 
 	// os.Root.Rename requests POSIX replace semantics on Windows, os.Rename does not.
 	// A root needs read access to the directory, plain rename does not.
-	if root, rerr := os.OpenRoot(filepath.Dir(filename)); rerr == nil {
+	if root, rerr := os.OpenRoot(dir); rerr == nil {
 		err = root.Rename(filepath.Base(tmpName), filepath.Base(filename))
 		_ = root.Close()
 	} else {
@@ -76,20 +76,8 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 // content, so a no-op save does not churn the filesystem or its mtime. A
 // skipped write leaves the existing mode alone as well.
 func WriteIfChanged(filename string, data []byte, perm os.FileMode) error {
-	filename = filepath.Clean(filename)
-	fi, err := os.Stat(filename)
-	if err == nil {
-		// Fast path: a size difference means the content differs.
-		if fi.Size() != int64(len(data)) {
-			return WriteFile(filename, data, perm)
-		}
-		// Slow path: sizes match, so compare the bytes.
-		var existing []byte
-		if existing, err = os.ReadFile(filename); err == nil && bytes.Equal(existing, data) {
-			return nil
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
+	if old, err := os.ReadFile(filename); err == nil && bytes.Equal(old, data) {
+		return nil
 	}
 	return WriteFile(filename, data, perm)
 }

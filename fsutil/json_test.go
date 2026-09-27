@@ -17,7 +17,7 @@ func TestLoadJSONMissingFileIsNoOp(t *testing.T) {
 	}
 }
 
-func TestLoadJSONResetsCorruptFile(t *testing.T) {
+func TestLoadJSONKeepsValueOnCorruptFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	if err := WriteFile(path, []byte("{not json"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
@@ -27,8 +27,8 @@ func TestLoadJSONResetsCorruptFile(t *testing.T) {
 	if err := LoadJSON(path, &v); err != nil {
 		t.Fatalf("LoadJSON: %v", err)
 	}
-	if v.N != 0 {
-		t.Fatalf("v = %+v, want zero value after corrupt load", v)
+	if v.N != 3 {
+		t.Fatalf("v = %+v, want the caller's value kept after corrupt load", v)
 	}
 	if !FileExists(path) {
 		t.Fatal("corrupt file must stay on disk for recovery")

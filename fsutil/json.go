@@ -9,8 +9,8 @@ import (
 )
 
 // LoadJSON reads path into v. A missing file is a no-op. A corrupt file is
-// logged and v reset to zero. The file itself is left in place, the next
-// save overwrites it.
+// logged and v keeps its prior value, so defaults set before the call
+// survive. The file itself is left in place, the next save overwrites it.
 func LoadJSON[T any](path string, v *T) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -19,10 +19,10 @@ func LoadJSON[T any](path string, v *T) error {
 		}
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
+	prev := *v
 	if err = json.Unmarshal(data, v); err != nil {
 		slog.Warn("ignoring corrupted file", "path", path, "error", err)
-		var zero T
-		*v = zero
+		*v = prev
 	}
 	return nil
 }
@@ -34,5 +34,5 @@ func SaveJSON(path string, v any, perm os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("serializing %s: %w", path, err)
 	}
-	return WriteIfChanged(path, data, perm)
+	return WriteIfChanged(path, append(data, '\n'), perm)
 }
