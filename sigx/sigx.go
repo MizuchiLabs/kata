@@ -25,10 +25,9 @@ func notifyContext(sigs ...os.Signal) (context.Context, <-chan struct{}) {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), sigs...)
 	unregistered := make(chan struct{})
-	go func() {
-		defer close(unregistered)
-		<-ctx.Done()
+	context.AfterFunc(ctx, func() {
 		stop() // restore default behavior: next signal kills instantly
-	}()
+		close(unregistered)
+	})
 	return ctx, unregistered
 }
