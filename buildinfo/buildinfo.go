@@ -7,7 +7,7 @@
 //	-X github.com/mizuchilabs/kata/buildinfo.Date={{.CommitDate}}
 //
 // Binaries built without ldflags (go install, local go build) fall back
-// to runtime/debug.ReadBuildInfo, so version information is never empty.
+// to [runtime/debug.ReadBuildInfo], so version information is never empty.
 package buildinfo
 
 import (

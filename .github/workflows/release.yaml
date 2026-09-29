@@ -1,0 +1,22 @@
+name: Release
+
+on:
+  schedule:
+    - cron: "40 3 * * 3"
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    uses: MizuchiLabs/.github/.github/workflows/go-release.yaml@main
